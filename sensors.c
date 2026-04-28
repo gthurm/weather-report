@@ -23,7 +23,7 @@ static void update_display(ssd1315_t *oled, int bmp_ok, double bmp_t, double bmp
 {
     char line[32];
     ssd1315_clear(oled);
-    ssd1315_text(oled, 0, 0, "-- Weather Station --");
+    ssd1315_text(oled, 0, 0, ">>Weather Report<<");
 
     if (bmp_ok == 0) {
         snprintf(line, sizeof(line), "Temp(BMP): %5.1f C", bmp_t);
