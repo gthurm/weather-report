@@ -54,7 +54,7 @@ static void update_display(ssd1315_t *oled, int bmp_ok, double bmp_t, double bmp
     char ts[32];
     time_t now = time(NULL);
     strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", localtime(&now));
-    ssd1315_text(oled, 1, 0, ts);
+    ssd1315_text(oled, 7, 0, ts);
 
     ssd1315_flush(oled);
 }
