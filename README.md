@@ -1,4 +1,4 @@
-# pi-sensors
+# weather-report
 
 A lightweight weather station daemon for the Raspberry Pi. Reads temperature, humidity, and pressure from two I2C sensors, displays live readings on an OLED screen, logs JSON to stdout, and stores every sample in a SQLite database.
 
