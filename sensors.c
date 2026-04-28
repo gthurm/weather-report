@@ -46,6 +46,7 @@ static void update_display(ssd1315_t *oled, int bmp_ok, double bmp_t, double bmp
     ssd1315_flush(oled);
 }
 
+#ifdef DEBUG
 static void print_json(int bmp_ok, double bmp_t, double bmp_p,
                        int aht_ok, double aht_t, double aht_h)
 {
@@ -73,6 +74,7 @@ static void print_json(int bmp_ok, double bmp_t, double bmp_p,
     printf("}\n");
     fflush(stdout);
 }
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -111,9 +113,9 @@ int main(int argc, char *argv[])
 
         if (oled)
             update_display(oled, bmp_ok, bmp_t, bmp_p, aht_ok, aht_t, aht_h);
-
+#ifdef DEBUG
         print_json(bmp_ok, bmp_t, bmp_p, aht_ok, aht_t, aht_h);
-
+#endif
         if (db)
             db_insert(db,
                       bmp_ok == 0 ? &bmp_t : NULL,
