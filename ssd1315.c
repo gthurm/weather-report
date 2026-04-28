@@ -112,6 +112,9 @@ static const uint8_t font5x7[][5] = {
     {0x08,0x08,0x2A,0x1C,0x08}, /* '~' */
 };
 
+/* Degree symbol (U+00B0): small superscript circle */
+static const uint8_t glyph_degree[5] = {0x06,0x09,0x09,0x06,0x00};
+
 /* ---- display handle ---- */
 
 struct ssd1315 {
@@ -205,9 +208,18 @@ void ssd1315_text(ssd1315_t *d, int page, int col, const char *str)
 {
     for (; *str && col < SSD1315_WIDTH; str++) {
         uint8_t c = (uint8_t)*str;
-        const uint8_t *glyph = (c >= 0x20 && c <= 0x7E)
-                               ? font5x7[c - 0x20]
-                               : font5x7[0]; /* fallback: space */
+        const uint8_t *glyph;
+
+        /* Detect UTF-8 encoding of U+00B0 DEGREE SIGN (0xC2 0xB0) */
+        if (c == 0xC2 && (uint8_t)str[1] == 0xB0) {
+            glyph = glyph_degree;
+            str++;
+        } else if (c >= 0x20 && c <= 0x7E) {
+            glyph = font5x7[c - 0x20];
+        } else {
+            glyph = font5x7[0]; /* fallback: space */
+        }
+
         for (int i = 0; i < 5 && col < SSD1315_WIDTH; i++, col++)
             d->fb[page][col] = glyph[i];
         if (col < SSD1315_WIDTH)

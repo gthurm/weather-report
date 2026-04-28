@@ -25,22 +25,30 @@ static void update_display(ssd1315_t *oled, int bmp_ok, double bmp_t, double bmp
     ssd1315_clear(oled);
     ssd1315_text(oled, 0, 0, ">>Weather Report<<");
 
-    if (bmp_ok == 0) {
-        snprintf(line, sizeof(line), "Temp(BMP): %5.1f C", bmp_t);
+    if (bmp_ok == 0 || aht_ok == 0) {
+        double avg_t;
+        if (bmp_ok == 0 && aht_ok == 0)
+            avg_t = (bmp_t + aht_t) / 2.0;
+        else
+            avg_t = bmp_ok == 0 ? bmp_t : aht_t;
+        snprintf(line, sizeof(line), "Temp:    %5.1f °C", avg_t);
         ssd1315_text(oled, 2, 0, line);
+    } else {
+        ssd1315_text(oled, 2, 0, "Temp: error");
+    }
+
+    if (bmp_ok == 0) {
         snprintf(line, sizeof(line), "Press: %7.1f hPa", bmp_p / 100.0);
         ssd1315_text(oled, 3, 0, line);
     } else {
-        ssd1315_text(oled, 2, 0, "BMP280 error");
+        ssd1315_text(oled, 3, 0, "Press: error");
     }
 
     if (aht_ok == 0) {
-        snprintf(line, sizeof(line), "Temp(AHT): %5.1f C", aht_t);
-        ssd1315_text(oled, 5, 0, line);
         snprintf(line, sizeof(line), "Humidity:  %5.1f %%", aht_h);
-        ssd1315_text(oled, 6, 0, line);
+        ssd1315_text(oled, 5, 0, line);
     } else {
-        ssd1315_text(oled, 5, 0, "AHT20 error");
+        ssd1315_text(oled, 5, 0, "Humidity: error");
     }
 
     ssd1315_flush(oled);
