@@ -12,8 +12,11 @@
 #include "ssd1315.h"
 #include "db.h"
 #include "firestore.h"
+#include "gpio.h"
 
-#define I2C_BUS  "/dev/i2c-1"
+#define I2C_BUS    "/dev/i2c-1"
+#define GPIO_CHIP  "/dev/gpiochip0"
+#define GPIO_BTN   17
 
 static volatile sig_atomic_t g_stop = 0;
 
@@ -120,29 +123,49 @@ int main(int argc, char *argv[])
     ssd1315_t   *oled = ssd1315_init(fd);
     db_t        *db   = db_open(db_path);
     firestore_t *fs   = firestore_open();
+    int          btn  = gpio_open(GPIO_CHIP, GPIO_BTN);
+
+    int display_on  = 1;
+    int btn_prev    = 0;
+    unsigned int ticks = 0;
+    const unsigned int ticks_per_sample = period * 10; /* 100 ms ticks */
 
     while (!g_stop) {
-        double bmp_t = 0, bmp_p = 0, aht_t = 0, aht_h = 0;
-        int bmp_ok = bmp ? bmp280_sample(bmp, &bmp_t, &bmp_p) : -1;
-        int aht_ok = aht20_sample(fd, &aht_t, &aht_h);
+        /* Detect rising edge on button to toggle display */
+        int btn_cur = btn >= 0 ? gpio_read(btn) : 0;
+        if (btn_cur == 1 && btn_prev == 0) {
+            display_on = !display_on;
+            if (oled && !display_on) {
+                ssd1315_clear(oled);
+                ssd1315_flush(oled);
+            }
+        }
+        btn_prev = btn_cur;
 
-        if (oled)
-            update_display(oled, bmp_ok, bmp_t, bmp_p, aht_ok, aht_t, aht_h);
+        if (ticks % ticks_per_sample == 0) {
+            double bmp_t = 0, bmp_p = 0, aht_t = 0, aht_h = 0;
+            int bmp_ok = bmp ? bmp280_sample(bmp, &bmp_t, &bmp_p) : -1;
+            int aht_ok = aht20_sample(fd, &aht_t, &aht_h);
+
+            if (oled && display_on)
+                update_display(oled, bmp_ok, bmp_t, bmp_p, aht_ok, aht_t, aht_h);
 #ifdef DEBUG
-        print_json(bmp_ok, bmp_t, bmp_p, aht_ok, aht_t, aht_h);
+            print_json(bmp_ok, bmp_t, bmp_p, aht_ok, aht_t, aht_h);
 #endif
-        double bmp_p_hpa = bmp_p / 100.0;
-        const double *p_bmp_t    = bmp_ok == 0 ? &bmp_t    : NULL;
-        const double *p_bmp_p    = bmp_ok == 0 ? &bmp_p_hpa : NULL;
-        const double *p_aht_t    = aht_ok == 0 ? &aht_t    : NULL;
-        const double *p_aht_h    = aht_ok == 0 ? &aht_h    : NULL;
+            double bmp_p_hpa = bmp_p / 100.0;
+            const double *p_bmp_t = bmp_ok == 0 ? &bmp_t     : NULL;
+            const double *p_bmp_p = bmp_ok == 0 ? &bmp_p_hpa : NULL;
+            const double *p_aht_t = aht_ok == 0 ? &aht_t     : NULL;
+            const double *p_aht_h = aht_ok == 0 ? &aht_h     : NULL;
 
-        if (db)
-            db_insert(db, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
-        if (fs)
-            firestore_insert(fs, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
+            if (db)
+                db_insert(db, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
+            if (fs)
+                firestore_insert(fs, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
+        }
 
-        sleep(period);
+        usleep(100000); /* 100 ms */
+        ticks++;
     }
 
     if (oled) {
