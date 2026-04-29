@@ -11,6 +11,7 @@
 #include "aht20.h"
 #include "ssd1315.h"
 #include "db.h"
+#include "firestore.h"
 
 #define I2C_BUS  "/dev/i2c-1"
 
@@ -115,9 +116,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    bmp280_t  *bmp  = bmp280_init(fd);
-    ssd1315_t *oled = ssd1315_init(fd);
-    db_t      *db   = db_open(db_path);
+    bmp280_t    *bmp  = bmp280_init(fd);
+    ssd1315_t   *oled = ssd1315_init(fd);
+    db_t        *db   = db_open(db_path);
+    firestore_t *fs   = firestore_open();
 
     while (!g_stop) {
         double bmp_t = 0, bmp_p = 0, aht_t = 0, aht_h = 0;
@@ -129,12 +131,16 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
         print_json(bmp_ok, bmp_t, bmp_p, aht_ok, aht_t, aht_h);
 #endif
+        double bmp_p_hpa = bmp_p / 100.0;
+        const double *p_bmp_t    = bmp_ok == 0 ? &bmp_t    : NULL;
+        const double *p_bmp_p    = bmp_ok == 0 ? &bmp_p_hpa : NULL;
+        const double *p_aht_t    = aht_ok == 0 ? &aht_t    : NULL;
+        const double *p_aht_h    = aht_ok == 0 ? &aht_h    : NULL;
+
         if (db)
-            db_insert(db,
-                      bmp_ok == 0 ? &bmp_t : NULL,
-                      bmp_ok == 0 ? &(double){bmp_p / 100.0} : NULL,
-                      aht_ok == 0 ? &aht_t : NULL,
-                      aht_ok == 0 ? &aht_h : NULL);
+            db_insert(db, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
+        if (fs)
+            firestore_insert(fs, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
 
         sleep(period);
     }
@@ -146,6 +152,7 @@ int main(int argc, char *argv[])
     }
     if (bmp) bmp280_close(bmp);
     if (db)  db_close(db);
+    if (fs)  firestore_close(fs);
 
     close(fd);
     return 0;
