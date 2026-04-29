@@ -18,38 +18,47 @@
 #define GPIO_CHIP  "/dev/gpiochip0"
 #define GPIO_BTN   17
 
+typedef struct {
+    int    bmp_ok;
+    double bmp_temp_c;
+    double bmp_press_pa;
+
+    int    aht_ok;
+    double aht_temp_c;
+    double aht_hum_pct;
+} sample_t;
+
 static volatile sig_atomic_t g_stop = 0;
 
 static void on_signal(int sig) { (void)sig; g_stop = 1; }
 
-static void update_display(ssd1315_t *oled, int bmp_ok, double bmp_t, double bmp_p,
-                            int aht_ok, double aht_t, double aht_h)
+static void update_display(ssd1315_t *oled, const sample_t *s)
 {
     char line[32];
     ssd1315_clear(oled);
     ssd1315_text(oled, 0, 0, ">>Weather Report<<");
 
-    if (bmp_ok == 0 || aht_ok == 0) {
+    if (s->bmp_ok == 0 || s->aht_ok == 0) {
         double avg_t;
-        if (bmp_ok == 0 && aht_ok == 0)
-            avg_t = (bmp_t + aht_t) / 2.0;
+        if (s->bmp_ok == 0 && s->aht_ok == 0)
+            avg_t = (s->bmp_temp_c + s->aht_temp_c) / 2.0;
         else
-            avg_t = bmp_ok == 0 ? bmp_t : aht_t;
+            avg_t = s->bmp_ok == 0 ? s->bmp_temp_c : s->aht_temp_c;
         snprintf(line, sizeof(line), "Temp:    %5.1f °C", avg_t);
         ssd1315_text(oled, 3, 0, line);
     } else {
         ssd1315_text(oled, 3, 0, "Temp: error");
     }
 
-    if (bmp_ok == 0) {
-        snprintf(line, sizeof(line), "Press: %7.1f hPa", bmp_p / 100.0);
+    if (s->bmp_ok == 0) {
+        snprintf(line, sizeof(line), "Press: %7.1f hPa", s->bmp_press_pa / 100.0);
         ssd1315_text(oled, 4, 0, line);
     } else {
         ssd1315_text(oled, 4, 0, "Press: error");
     }
 
-    if (aht_ok == 0) {
-        snprintf(line, sizeof(line), "Humidity:  %5.1f %%", aht_h);
+    if (s->aht_ok == 0) {
+        snprintf(line, sizeof(line), "Humidity:  %5.1f %%", s->aht_hum_pct);
         ssd1315_text(oled, 5, 0, line);
     } else {
         ssd1315_text(oled, 5, 0, "Humidity: error");
@@ -64,8 +73,7 @@ static void update_display(ssd1315_t *oled, int bmp_ok, double bmp_t, double bmp
 }
 
 #ifdef DEBUG
-static void print_json(int bmp_ok, double bmp_t, double bmp_p,
-                       int aht_ok, double aht_t, double aht_h)
+static void print_json(const sample_t *s)
 {
     char ts[32];
     time_t now = time(NULL);
@@ -75,15 +83,17 @@ static void print_json(int bmp_ok, double bmp_t, double bmp_p,
     printf("  \"timestamp\": \"%s\",\n", ts);
 
     printf("  \"bmp280\": {\n");
-    if (bmp_ok == 0)
-        printf("    \"temperature_c\": %.2f,\n    \"pressure_hpa\": %.2f\n", bmp_t, bmp_p / 100.0);
+    if (s->bmp_ok == 0)
+        printf("    \"temperature_c\": %.2f,\n    \"pressure_hpa\": %.2f\n",
+               s->bmp_temp_c, s->bmp_press_pa / 100.0);
     else
         printf("    \"error\": \"read failed\"\n");
     printf("  },\n");
 
     printf("  \"aht20\": {\n");
-    if (aht_ok == 0)
-        printf("    \"temperature_c\": %.2f,\n    \"humidity_pct\": %.2f\n", aht_t, aht_h);
+    if (s->aht_ok == 0)
+        printf("    \"temperature_c\": %.2f,\n    \"humidity_pct\": %.2f\n",
+               s->aht_temp_c, s->aht_hum_pct);
     else
         printf("    \"error\": \"read failed\"\n");
     printf("  }\n");
@@ -92,6 +102,18 @@ static void print_json(int bmp_ok, double bmp_t, double bmp_p,
     fflush(stdout);
 }
 #endif
+
+static void store_sample(db_t *db, firestore_t *fs, const sample_t *s)
+{
+    double bmp_press_hpa = s->bmp_press_pa / 100.0;
+    const double *p_bmp_t = s->bmp_ok == 0 ? &s->bmp_temp_c   : NULL;
+    const double *p_bmp_p = s->bmp_ok == 0 ? &bmp_press_hpa   : NULL;
+    const double *p_aht_t = s->aht_ok == 0 ? &s->aht_temp_c   : NULL;
+    const double *p_aht_h = s->aht_ok == 0 ? &s->aht_hum_pct  : NULL;
+
+    if (db) db_insert(db, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
+    if (fs) firestore_insert(fs, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
+}
 
 int main(int argc, char *argv[])
 {
@@ -125,43 +147,40 @@ int main(int argc, char *argv[])
     firestore_t *fs   = firestore_open();
     int          btn  = gpio_open(GPIO_CHIP, GPIO_BTN);
 
-    int display_on  = 1;
-    int btn_prev    = 0;
+    int display_on = 1;
+    int btn_prev   = 0;
     unsigned int ticks = 0;
     const unsigned int ticks_per_sample = period * 10; /* 100 ms ticks */
 
+    sample_t last = { .bmp_ok = -1, .aht_ok = -1 };
+
     while (!g_stop) {
-        /* Detect rising edge on button to toggle display */
         int btn_cur = btn >= 0 ? gpio_read(btn) : 0;
         if (btn_cur == 1 && btn_prev == 0) {
             display_on = !display_on;
-            if (oled && !display_on) {
-                ssd1315_clear(oled);
-                ssd1315_flush(oled);
+            if (oled) {
+                if (display_on)
+                    update_display(oled, &last);
+                else {
+                    ssd1315_clear(oled);
+                    ssd1315_flush(oled);
+                }
             }
         }
         btn_prev = btn_cur;
 
         if (ticks % ticks_per_sample == 0) {
-            double bmp_t = 0, bmp_p = 0, aht_t = 0, aht_h = 0;
-            int bmp_ok = bmp ? bmp280_sample(bmp, &bmp_t, &bmp_p) : -1;
-            int aht_ok = aht20_sample(fd, &aht_t, &aht_h);
+            last = (sample_t){
+                .bmp_ok = bmp ? bmp280_sample(bmp, &last.bmp_temp_c, &last.bmp_press_pa) : -1,
+                .aht_ok = aht20_sample(fd, &last.aht_temp_c, &last.aht_hum_pct),
+            };
 
             if (oled && display_on)
-                update_display(oled, bmp_ok, bmp_t, bmp_p, aht_ok, aht_t, aht_h);
+                update_display(oled, &last);
 #ifdef DEBUG
-            print_json(bmp_ok, bmp_t, bmp_p, aht_ok, aht_t, aht_h);
+            print_json(&last);
 #endif
-            double bmp_p_hpa = bmp_p / 100.0;
-            const double *p_bmp_t = bmp_ok == 0 ? &bmp_t     : NULL;
-            const double *p_bmp_p = bmp_ok == 0 ? &bmp_p_hpa : NULL;
-            const double *p_aht_t = aht_ok == 0 ? &aht_t     : NULL;
-            const double *p_aht_h = aht_ok == 0 ? &aht_h     : NULL;
-
-            if (db)
-                db_insert(db, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
-            if (fs)
-                firestore_insert(fs, p_bmp_t, p_bmp_p, p_aht_t, p_aht_h);
+            store_sample(db, fs, &last);
         }
 
         usleep(100000); /* 100 ms */
@@ -176,6 +195,7 @@ int main(int argc, char *argv[])
     if (bmp) bmp280_close(bmp);
     if (db)  db_close(db);
     if (fs)  firestore_close(fs);
+    gpio_close(btn);
 
     close(fd);
     return 0;
