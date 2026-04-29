@@ -1,6 +1,6 @@
 # weather-report
 
-A lightweight weather station daemon for the Raspberry Pi. Reads temperature, humidity, and pressure from two I2C sensors, displays live readings on an OLED screen, logs JSON to stdout, and stores every sample in a SQLite database.
+A lightweight weather station daemon for the Raspberry Pi. Reads temperature, humidity, and pressure from two I2C sensors, displays live readings on an OLED screen, logs JSON to stdout, stores every sample in a SQLite database, and pushes to Firestore.
 
 ## Hardware
 
@@ -10,12 +10,14 @@ A lightweight weather station daemon for the Raspberry Pi. Reads temperature, hu
 | AHT20   | `0x38`   | Temperature, relative humidity   |
 | SSD1315 | `0x3C`   | 128×64 OLED display (output)     |
 
-All devices connect to the same I2C bus (`/dev/i2c-1`).
+A micro switch on GPIO 17 toggles the display on/off.
+
+All I2C devices share `/dev/i2c-1`.
 
 ## Dependencies
 
 ```sh
-sudo apt install libsqlite3-dev
+sudo apt install libsqlite3-dev libcurl4-openssl-dev
 ```
 
 ## Build
@@ -43,13 +45,23 @@ make
 
 Stop with `Ctrl-C` — the display is cleared on exit.
 
+## Firestore
+
+Set these environment variables to enable Firestore ingestion (optional — omitting them disables it silently):
+
+```sh
+export FIRESTORE_PROJECT_ID=my-project
+export FIRESTORE_API_KEY=AIza...
+export FIRESTORE_COLLECTION=samples   # optional, default: "samples"
+```
+
 ## Output
 
-Each sample prints a JSON object to stdout:
+Each sample prints a JSON object to stdout (when built with `-DDEBUG`):
 
 ```json
 {
-  "timestamp": "2026-04-28T14:00:00Z",
+  "timestamp": "2026-04-29T14:00:00Z",
   "bmp280": {
     "temperature_c": 22.45,
     "pressure_hpa": 1013.25
@@ -88,10 +100,14 @@ sqlite3 sensors.db "SELECT AVG(aht_hum_pct) FROM samples WHERE timestamp >= date
 
 ```
 >>Weather Report<<
+2026-04-29 14:00:00
 
-Temp(BMP):  22.4 C
-Press:  1013.3 hPa
+Temp:      22.3 °C
+Press:   1013.3 hPa
+Humidity:  48.3 %
 
-Temp(AHT):  22.1 C
-Humidity:   48.3 %
+
+2026-04-29 14:00:00
 ```
+
+The temperature shown is the average of both sensors when both are available, falling back to whichever one succeeded. The display can be toggled on/off with the button on GPIO 17; the last sample is shown immediately when turned back on.
