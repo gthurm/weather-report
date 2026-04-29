@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Report</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header>
+    <h1>&gt;&gt;Weather Report&lt;&lt;</h1>
+    <div class="controls">
+      <select id="range">
+        <option value="1">Last hour</option>
+        <option value="6">Last 6 hours</option>
+        <option value="24" selected>Last 24 hours</option>
+        <option value="168">Last 7 days</option>
+      </select>
+      <span id="last-updated"></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="cards">
+      <div class="card">
+        <span class="label">Temperature</span>
+        <span class="value" id="card-temp">—</span>
+        <span class="unit">°C</span>
+      </div>
+      <div class="card">
+        <span class="label">Pressure</span>
+        <span class="value" id="card-press">—</span>
+        <span class="unit">hPa</span>
+      </div>
+      <div class="card">
+        <span class="label">Humidity</span>
+        <span class="value" id="card-hum">—</span>
+        <span class="unit">%</span>
+      </div>
+    </section>
+
+    <section class="charts">
+      <div class="chart-box">
+        <h2>Temperature (°C)</h2>
+        <canvas id="chart-temp"></canvas>
+      </div>
+      <div class="chart-box">
+        <h2>Pressure (hPa)</h2>
+        <canvas id="chart-press"></canvas>
+      </div>
+      <div class="chart-box">
+        <h2>Humidity (%)</h2>
+        <canvas id="chart-hum"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

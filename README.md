@@ -111,3 +111,29 @@ Humidity:  48.3 %
 ```
 
 The temperature shown is the average of both sensors when both are available, falling back to whichever one succeeded. The display can be toggled on/off with the button on GPIO 17; the last sample is shown immediately when turned back on.
+
+## Web dashboard (`webapp/`)
+
+A Vite + vanilla JS SPA deployed to Firebase Hosting. Shows current-value cards and three time-series charts (temperature, pressure, humidity) pulled from Firestore, with a time-range selector (1 h / 6 h / 24 h / 7 d) and auto-refresh every minute.
+
+### Setup
+
+```sh
+cd webapp
+cp .env.example .env      # fill in your Firebase project values
+npm install
+```
+
+### Develop
+
+```sh
+npm run dev
+```
+
+### Deploy
+
+```sh
+npm run deploy            # builds and runs firebase deploy --only hosting
+```
+
+Requires the Firebase CLI (`npm install -g firebase-tools`) and `firebase login` on first use.
