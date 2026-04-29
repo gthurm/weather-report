@@ -170,10 +170,8 @@ int main(int argc, char *argv[])
         btn_prev = btn_cur;
 
         if (ticks % ticks_per_sample == 0) {
-            last = (sample_t){
-                .bmp_ok = bmp ? bmp280_sample(bmp, &last.bmp_temp_c, &last.bmp_press_pa) : -1,
-                .aht_ok = aht20_sample(fd, &last.aht_temp_c, &last.aht_hum_pct),
-            };
+            last.bmp_ok = bmp ? bmp280_sample(bmp, &last.bmp_temp_c, &last.bmp_press_pa) : -1;
+            last.aht_ok = aht20_sample(fd, &last.aht_temp_c, &last.aht_hum_pct);
 
             if (oled && display_on)
                 update_display(oled, &last);
