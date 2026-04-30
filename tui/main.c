@@ -54,16 +54,24 @@ static void pad_range(double *lo, double *hi, double margin)
 
 static void draw_all(const tui_sample_t *samples, int n, int hours)
 {
-    int cols, rows;
-    term_size(&cols, &rows);
+    int cols, rows, px_w, px_h;
+    term_size(&cols, &rows, &px_w, &px_h);
 
-    /* pixel size: each chart gets 1/3 of terminal height, full width
-     * assume ~2:1 pixel-to-cell ratio */
-    int cell_h = (rows - 4) / 3;   /* rows per chart */
-    int pw = cols * 2;
-    int ph = cell_h * 2;
+    /* Use actual pixel dimensions when available; fall back to cell estimate. */
+    int pw, ph;
+    if (px_w > 0 && px_h > 0) {
+        pw = px_w;
+        ph = (px_h - (4 * px_h / rows)) / 3;  /* reserve ~4 rows for header/footer */
+    } else {
+        /* estimate: typical cell is ~8×16 px */
+        pw = cols * 8;
+        ph = ((rows - 4) / 3) * 16;
+    }
     if (pw < 80)  pw = 80;
-    if (ph < 40)  ph = 40;
+    if (ph < 60)  ph = 60;
+
+    int cell_h = (ph * rows) / (px_h > 0 ? px_h : rows * 16); /* chart height in rows */
+    if (cell_h < 1) cell_h = (rows - 4) / 3;
 
     /* build series arrays */
     double *bmp_t  = malloc(n * sizeof(double));

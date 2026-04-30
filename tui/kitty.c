@@ -90,14 +90,16 @@ void term_reset(void)
     fflush(stdout);
 }
 
-void term_size(int *cols, int *rows)
+void term_size(int *cols, int *rows, int *px_w, int *px_h)
 {
     struct winsize ws;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
         *cols = ws.ws_col;
         *rows = ws.ws_row;
+        *px_w = ws.ws_xpixel;
+        *px_h = ws.ws_ypixel;
     } else {
-        *cols = 220;
-        *rows = 50;
+        *cols = 220; *rows = 50;
+        *px_w = 0;   *px_h = 0;
     }
 }

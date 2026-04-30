@@ -15,5 +15,6 @@ void term_init(void);
 /* Show cursor and reset terminal. */
 void term_reset(void);
 
-/* Get terminal size in cells. */
-void term_size(int *cols, int *rows);
+/* Get terminal size in cells and pixels.
+ * px_w/px_h may be 0 if the terminal doesn't report pixel dimensions. */
+void term_size(int *cols, int *rows, int *px_w, int *px_h);
