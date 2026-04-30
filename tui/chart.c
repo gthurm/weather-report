@@ -125,19 +125,24 @@ static void vline(image_t *img, int x, int y0, int y1, uint32_t color)
     for (int y = y0; y <= y1; y++) put(img, x, y, color);
 }
 
-static void draw_text(image_t *img, int x, int y, const char *str, uint32_t color)
+static void draw_text(image_t *img, int x, int y, const char *str,
+                      uint32_t color, int scale)
 {
     for (; *str; str++) {
         uint8_t c = (uint8_t)*str;
-        if (c < 0x20 || c > 0x7E) { x += 6; continue; }
+        if (c < 0x20 || c > 0x7E) { x += 6 * scale; continue; }
         const uint8_t *g = font5x7[c - 0x20];
         for (int col = 0; col < 5; col++) {
             for (int row = 0; row < 7; row++) {
-                if (g[col] & (1 << row))
-                    put(img, x + col, y + row, color);
+                if (g[col] & (1 << row)) {
+                    for (int sy = 0; sy < scale; sy++)
+                        for (int sx = 0; sx < scale; sx++)
+                            put(img, x + col*scale + sx,
+                                     y + row*scale + sy, color);
+                }
             }
         }
-        x += 6;
+        x += 6 * scale;
     }
 }
 
@@ -173,10 +178,7 @@ void image_free(image_t *img)
     if (img) { free(img->px); free(img); }
 }
 
-#define PAD_LEFT  48
-#define PAD_RIGHT 12
-#define PAD_TOP   20
-#define PAD_BOT   16
+/* Padding scales with font size; computed at runtime below. */
 
 void chart_draw(image_t *img, const double *values, int n,
                 double y_min, double y_max,
@@ -187,6 +189,17 @@ void chart_draw(image_t *img, const double *values, int n,
     uint32_t AXIS     = RGB(0x44,0x48,0x58);
     uint32_t TEXT_COL = RGB(0x88,0x92,0xa4);
 
+    /* font scale: 1 per 200 px of height, min 2 */
+    int fs = img->h / 200;
+    if (fs < 2) fs = 2;
+    int fh = 7 * fs;   /* glyph height in px */
+    int fw = 6 * fs;   /* glyph+spacing width */
+
+    int PAD_LEFT  = fw * 7;  /* room for 6-char y-label + gap */
+    int PAD_RIGHT = fw;
+    int PAD_TOP   = fh + fs * 4;
+    int PAD_BOT   = fh + fs * 2;
+
     /* fill background */
     for (int i = 0; i < img->w * img->h; i++)
         img->px[i] = BG;
@@ -196,7 +209,7 @@ void chart_draw(image_t *img, const double *values, int n,
     int cw = cx1 - cx0, ch = cy1 - cy0;
 
     /* title */
-    draw_text(img, cx0, 4, title, TEXT_COL);
+    draw_text(img, cx0, fs * 2, title, TEXT_COL, fs);
 
     /* horizontal grid lines + y-axis labels (5 divisions) */
     double range = y_max - y_min;
@@ -207,7 +220,7 @@ void chart_draw(image_t *img, const double *values, int n,
         double val = y_min + range * i / 4.0;
         char label[16];
         snprintf(label, sizeof(label), "%6.1f", val);
-        draw_text(img, 0, y - 3, label, TEXT_COL);
+        draw_text(img, fs, y - fh / 2, label, TEXT_COL, fs);
     }
 
     /* axes */

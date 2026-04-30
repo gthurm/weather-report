@@ -57,21 +57,26 @@ static void draw_all(const tui_sample_t *samples, int n, int hours)
     int cols, rows, px_w, px_h;
     term_size(&cols, &rows, &px_w, &px_h);
 
-    /* Use actual pixel dimensions when available; fall back to cell estimate. */
-    int pw, ph;
-    if (px_w > 0 && px_h > 0) {
-        pw = px_w;
-        ph = (px_h - (4 * px_h / rows)) / 3;  /* reserve ~4 rows for header/footer */
-    } else {
-        /* estimate: typical cell is ~8×16 px */
-        pw = cols * 8;
-        ph = ((rows - 4) / 3) * 16;
-    }
+    /* cell pixel size */
+    int cell_px_w = px_w > 0 ? px_w / cols : 8;
+    int cell_px_h = px_h > 0 ? px_h / rows : 16;
+
+    /* gap between charts in pixels and its equivalent in rows */
+    int gap_px   = cell_px_h * 2;
+    int gap_rows = 2;
+
+    /* each chart gets an equal share of the remaining vertical space */
+    int reserved_px = 2 * cell_px_h     /* header rows */
+                    + 1 * cell_px_h     /* footer row  */
+                    + 2 * gap_px;       /* two gaps between three charts */
+    int pw = (px_w > 0 ? px_w : cols * cell_px_w) * 4 / 5;
+    int ph = px_h > 0 ? (px_h - reserved_px) / 3
+                      : ((rows - 3) / 3 - gap_rows) * cell_px_h;
     if (pw < 80)  pw = 80;
     if (ph < 60)  ph = 60;
 
-    int cell_h = (ph * rows) / (px_h > 0 ? px_h : rows * 16); /* chart height in rows */
-    if (cell_h < 1) cell_h = (rows - 4) / 3;
+    int cell_h = ph / cell_px_h;  /* chart height in terminal rows */
+    if (cell_h < 1) cell_h = 1;
 
     /* build series arrays */
     double *bmp_t  = malloc(n * sizeof(double));
@@ -161,7 +166,8 @@ static void draw_all(const tui_sample_t *samples, int n, int hours)
             }
         }
 
-        term_move(3, 1);
+        int row1 = 3;
+        term_move(row1, 1);
         kitty_display(img, 1);
         image_free(img);
     }
@@ -170,7 +176,8 @@ static void draw_all(const tui_sample_t *samples, int n, int hours)
     {
         image_t *img = image_new(pw, ph);
         chart_draw(img, press, n, p_lo, p_hi, RGB32(COL_PRESS), "Pressure (hPa)");
-        term_move(3 + cell_h, 1);
+        int row2 = 3 + cell_h + gap_rows;
+        term_move(row2, 1);
         kitty_display(img, 2);
         image_free(img);
     }
@@ -179,7 +186,8 @@ static void draw_all(const tui_sample_t *samples, int n, int hours)
     {
         image_t *img = image_new(pw, ph);
         chart_draw(img, hum, n, h_lo, h_hi, RGB32(COL_HUM), "Humidity (%)");
-        term_move(3 + cell_h * 2, 1);
+        int row3 = 3 + (cell_h + gap_rows) * 2;
+        term_move(row3, 1);
         kitty_display(img, 3);
         image_free(img);
     }
