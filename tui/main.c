@@ -12,7 +12,7 @@
 
 #define DEFAULT_DB   "../sensors.db"
 #define DEFAULT_HRS  24
-#define REFRESH_SEC  60
+#define REFRESH_SEC  300
 
 /* RGBA colours matching the webapp palette */
 #define COL_BMP_T  0x38bdf8   /* sky blue  */
