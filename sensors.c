@@ -159,12 +159,9 @@ int main(int argc, char *argv[])
         if (btn_cur == 1 && btn_prev == 0) {
             display_on = !display_on;
             if (oled) {
+                ssd1315_display(oled, display_on);
                 if (display_on)
                     update_display(oled, &last);
-                else {
-                    ssd1315_clear(oled);
-                    ssd1315_flush(oled);
-                }
             }
         }
         btn_prev = btn_cur;
@@ -186,8 +183,7 @@ int main(int argc, char *argv[])
     }
 
     if (oled) {
-        ssd1315_clear(oled);
-        ssd1315_flush(oled);
+        ssd1315_display(oled, 0);
         ssd1315_close(oled);
     }
     if (bmp) bmp280_close(bmp);

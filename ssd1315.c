@@ -204,6 +204,11 @@ void ssd1315_flush(ssd1315_t *d)
     write(d->fd, buf, sizeof(buf));
 }
 
+void ssd1315_display(ssd1315_t *d, int on)
+{
+    oled_cmd(d, on ? 0xAF : 0xAE);
+}
+
 void ssd1315_text(ssd1315_t *d, int page, int col, const char *str)
 {
     for (; *str && col < SSD1315_WIDTH; str++) {

@@ -12,6 +12,7 @@ ssd1315_t *ssd1315_init(int i2c_fd);
 void       ssd1315_close(ssd1315_t *d);
 void       ssd1315_clear(ssd1315_t *d);
 void       ssd1315_flush(ssd1315_t *d);
+void       ssd1315_display(ssd1315_t *d, int on); /* 1 = on (0xAF), 0 = off (0xAE) */
 
 /* Draw a null-terminated string at page row (0-7) and pixel column (0-127).
  * Uses the built-in 5×7 font; characters are 6 px wide including spacing. */
