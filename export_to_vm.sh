@@ -17,10 +17,9 @@ CURSOR="1970-01-01T00:00:00Z"
 echo "Exporting rows after: $CURSOR"
 
 lines=$(sqlite3 -separator $'\t' "$DB" \
-    "SELECT timestamp, bmp_temp_c, bmp_press_hpa, aht_temp_c, aht_hum_pct
+    "SELECT strftime('%s', timestamp) || '000000000', bmp_temp_c, bmp_press_hpa, aht_temp_c, aht_hum_pct
      FROM samples WHERE timestamp > '${CURSOR}' ORDER BY timestamp ASC;" \
-| while IFS=$'\t' read -r ts bmp_temp bmp_press aht_temp aht_hum; do
-    ns=$(date -d "$ts" +%s%N)
+| while IFS=$'\t' read -r ns bmp_temp bmp_press aht_temp aht_hum; do
     [[ "$bmp_temp"  != "NULL" && -n "$bmp_temp"  ]] && echo "temperature,sensor=bmp280 value=${bmp_temp} ${ns}"
     [[ "$bmp_press" != "NULL" && -n "$bmp_press" ]] && echo "pressure,sensor=bmp280 value=${bmp_press} ${ns}"
     [[ "$aht_temp"  != "NULL" && -n "$aht_temp"  ]] && echo "temperature,sensor=aht20 value=${aht_temp} ${ns}"
