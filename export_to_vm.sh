@@ -72,13 +72,13 @@ while true; do
 
         # Emit one line per non-NULL field; each metric gets its own series
         [[ "$bmp_temp"  != "NULL" && -n "$bmp_temp"  ]] && \
-            lines+="bmp_temp_c,sensor=bmp280   value=${bmp_temp} ${ns}"$'\n'
+            lines+="bmp_temp_c,sensor=bmp280 value=${bmp_temp} ${ns}"$'\n'
         [[ "$bmp_press" != "NULL" && -n "$bmp_press" ]] && \
             lines+="bmp_press_hpa,sensor=bmp280 value=${bmp_press} ${ns}"$'\n'
         [[ "$aht_temp"  != "NULL" && -n "$aht_temp"  ]] && \
-            lines+="aht_temp_c,sensor=aht20   value=${aht_temp} ${ns}"$'\n'
+            lines+="aht_temp_c,sensor=aht20 value=${aht_temp} ${ns}"$'\n'
         [[ "$aht_hum"   != "NULL" && -n "$aht_hum"   ]] && \
-            lines+="aht_hum_pct,sensor=aht20  value=${aht_hum} ${ns}"$'\n'
+            lines+="aht_hum_pct,sensor=aht20 value=${aht_hum} ${ns}"$'\n'
     done <<< "$rows"
 
     row_count=$(echo "$rows" | wc -l)
