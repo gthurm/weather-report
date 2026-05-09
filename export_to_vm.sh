@@ -84,10 +84,10 @@ while true; do
     row_count=$(echo "$rows" | wc -l)
 
     if [[ -n "$lines" ]]; then
-        http_code=$(curl -s -o /dev/stderr -w "%{http_code}" \
+        http_code=$(printf '%s' "$lines" | curl -s -o /dev/stderr -w "%{http_code}" \
             --request POST "$WRITE_URL" \
             --header "Content-Type: text/plain" \
-            --data-binary "$lines")
+            --data-binary @-)
         if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]]; then
             echo "error: VM returned HTTP $http_code — aborting" >&2
             exit 1
